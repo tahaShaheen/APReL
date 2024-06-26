@@ -80,7 +80,8 @@ def generate_trajectories_randomly(env: Environment,
             while not done and t < max_episode_length:
                 act = env.action_space.sample()
                 traj.append((obs,act))
-                obs, _, done, _ = env.step(act)
+                obs, _, terminated, truncated, _ = env.step(act)
+                done = terminated or truncated
                 t += 1
                 if env_has_rgb_render:
                     frames.append(np.uint8(env.render(mode='rgb_array')))

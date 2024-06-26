@@ -124,7 +124,7 @@ We first import **APReL** and the other necessary libraries. `Gym library <https
 
     import aprel
     import numpy as np
-    import gym
+    import gymnasium as gym
 
 
 In this example, we will be using the `MountainCarContinuous-v0 <https://gym.openai.com/envs/MountainCarContinuous-v0/>`_ environment. Let's create an environment object and set the random seeds for reproducibility:

@@ -1,12 +1,12 @@
 import aprel
 import numpy as np
-import gym
+import gymnasium as gym
 
 env_name = 'CartPole-v1'
 gym_env = gym.make(env_name)
 
-np.random.seed(0)
-gym_env.seed(0)
+np.random.seed(0) # Set the random seed for reproducibility for numpy operations
+gym_env.reset(seed=0) # Set the random seed for reproducibility for gym environment
 
 def feature_func(traj):
     """Returns the features of the given MountainCar trajectory, i.e. \Phi(traj).
@@ -17,6 +17,8 @@ def feature_func(traj):
     Returns:
         features: a numpy vector corresponding the features of the trajectory
     """
+    print([pair[0] for pair in traj])
+
     states = np.array([pair[0] for pair in traj])
     actions = np.array([pair[1] for pair in traj[:-1]])
     min_pos, max_pos = states[:,0].min(), states[:,0].max()

@@ -1,6 +1,6 @@
 import aprel
 import numpy as np
-import gym
+import gymnasium as gym
 
 
 def feature_func(traj):

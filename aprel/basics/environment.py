@@ -1,7 +1,7 @@
 """Environment-related modules."""
 
 from typing import Callable
-import gym
+import gymnasium as gym
 
 
 class Environment:
@@ -30,7 +30,7 @@ class Environment:
         self.env = env
         self.features = feature_func
 
-        # Mirror the main functionality
+        # Mirror the main functionality. E.g., self.action_space is the same function as self.env.action_space
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
         self.reset = self.env.reset
