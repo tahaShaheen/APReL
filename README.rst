@@ -1,4 +1,40 @@
 ====================================
+Taha's notes:
+====================================
+
+Install Miniconda
+
+https://docs.anaconda.com/miniconda/
+
+
+Then this stuff:
+
+.. code-block:: sh
+    
+git clone https://github.com/Stanford-ILIAD/APReL.git
+cd APReL
+
+sudo apt update && sudo apt upgrade
+
+sudo apt install ffmpeg
+sudo apt install dpkg-dev
+sudo apt install libsdl2-dev
+
+sudo apt-get install python3-opengl
+
+conda create -n aprel_old python=3.7
+conda activate aprel_old
+
+pip3 install -r requirements.txt
+
+conda install tensorflow-gpu=1.15
+conda install -c conda-forge -c powerai gym
+pip install pyglet==1.5
+
+pip3 install -e .
+
+
+====================================
 APReL: A Library for Active Preference-based Reward Learning Algorithms
 ====================================
 
