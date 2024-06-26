@@ -22,14 +22,17 @@ Then this stuff one after the other:
 
     sudo apt-get install python3-opengl
 
-    conda create -n aprel_old python=3.7
-    conda activate aprel_old
+    conda create -n aprel_new python=3.12
+    conda activate aprel_new
 
-    pip3 install -r requirements.txt
+    conda config --add channels conda-forge
+    conda install gymnasium-all
+    pip install gymnasium[accept-rom-license]
+    pip install tensorflow
 
-    conda install tensorflow-gpu=1.15
-    conda install -c conda-forge -c powerai gym
-    pip install pyglet==1.5
+    pip install -r requirements.txt
+    
+    pip install pyglet
 
     pip3 install -e .
 

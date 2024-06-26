@@ -2,7 +2,7 @@ import aprel
 import numpy as np
 import gym
 
-env_name = 'MountainCarContinuous-v0'
+env_name = 'CartPole-v1'
 gym_env = gym.make(env_name)
 
 np.random.seed(0)
