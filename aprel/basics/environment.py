@@ -36,10 +36,12 @@ class Environment:
         self.reset = self.env.reset
         self.step = self.env.step
 
+        # Taha's comment: Following allow to work with environments that aren't fully specced out according to gymnasium specifications.
+
         # Mirror the render function only if it exists
         self.render_exists = callable(getattr(self.env, "render", None))
         self.render = self.env.render if self.render_exists else None
 
-        # Mirror the close function only if it exists
+        # Mirror the close function only if it exists. 
         self.close_exists = callable(getattr(self.env, "close", None))
         self.close = self.env.close if self.close_exists else None

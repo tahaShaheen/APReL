@@ -4,7 +4,7 @@ import gymnasium as gym
 
 
 def feature_func(traj):
-    """Returns the features of the given MountainCar trajectory, i.e. \Phi(traj).
+    """Returns the features of the given MountainCar trajectory, i.e. Phi(traj).
     
     Args:
         traj: List of state-action tuples, e.g. [(state0, action0), (state1, action1), ...]

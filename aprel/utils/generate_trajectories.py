@@ -7,6 +7,8 @@ from moviepy.editor import ImageSequenceClip
 import warnings
 import os
 
+from gymnasium.wrappers import RecordVideo
+
 from aprel.basics import Environment, Trajectory, TrajectorySet
 
 
@@ -40,8 +42,8 @@ def generate_trajectories_randomly(env: Environment,
         AssertionError: if :py:attr:`restore` is true, but no :py:attr:`file_name` is given.
     """
     assert(not (file_name is None and restore)), 'Trajectory set cannot be restored, because no file_name is given.'
-    max_episode_length = np.inf if max_episode_length is None else max_episode_length
-    if restore:
+    max_episode_length = np.inf if max_episode_length is None else max_episode_length # Taha: Set infinite max_episode_length if not given.
+    if restore: # Taha: If restore is true, then try to load the trajectories from the file.
         try:
             with open('aprel_trajectories/' + file_name + '.pkl', 'rb') as f:
                 trajectories = pickle.load(f)
@@ -54,13 +56,13 @@ def generate_trajectories_randomly(env: Environment,
                     warnings.warn('Ignoring restore=True, because headless=False and some trajectory clips are missing.')
                     trajectories = TrajectorySet([])
                     break
-    else:
+    else: # Taha: Start with an empty TrajectorySet
         trajectories = TrajectorySet([])
     
     if not os.path.exists('aprel_trajectories'):
         os.makedirs('aprel_trajectories')
     
-    if trajectories.size >= num_trajectories: # If size exceeds, save only first num_trajectories 
+    if trajectories.size >= num_trajectories: # Taha: If size exceeds, save only first num_trajectories 
         trajectories = TrajectorySet(trajectories[:num_trajectories])
     else:
         env_has_rgb_render = env.render_exists and not headless
