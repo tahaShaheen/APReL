@@ -60,7 +60,7 @@ def generate_trajectories_randomly(env: Environment,
     if not os.path.exists('aprel_trajectories'):
         os.makedirs('aprel_trajectories')
     
-    if trajectories.size >= num_trajectories:
+    if trajectories.size >= num_trajectories: # If size exceeds, save only first num_trajectories 
         trajectories = TrajectorySet(trajectories[:num_trajectories])
     else:
         env_has_rgb_render = env.render_exists and not headless
@@ -69,7 +69,7 @@ def generate_trajectories_randomly(env: Environment,
         env.action_space.seed(seed)
         for traj_no in range(trajectories.size, num_trajectories):
             traj = []
-            obs = env.reset()
+            obs, _ = env.reset()
             if env_has_rgb_render:
                 try:
                     frames = [np.uint8(env.render(mode='rgb_array'))]
