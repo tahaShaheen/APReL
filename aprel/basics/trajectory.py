@@ -28,8 +28,8 @@ class Trajectory:
         clip_path (str): The path to the video clip that keeps the visualization of the trajectory.
     """
     def __init__(self, env: Environment, trajectory: List[Tuple[np.array, np.array]], clip_path: str = None):
-        self.trajectory = trajectory
-        self.features = env.features(trajectory)
+        self.trajectory = trajectory 
+        self.features = env.features(trajectory) 
         self.clip_path = clip_path
         
     def __getitem__(self, t: int) -> Tuple[np.array, np.array]:
