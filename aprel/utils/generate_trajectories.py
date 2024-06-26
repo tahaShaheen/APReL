@@ -72,7 +72,7 @@ def generate_trajectories_randomly(env: Environment,
             obs, _ = env.reset()
             if env_has_rgb_render:
                 try:
-                    frames = [np.uint8(env.render(mode='rgb_array'))]
+                    frames = [np.uint8(env.render())]
                 except:
                     env_has_rgb_render = False
             done = False
@@ -84,7 +84,7 @@ def generate_trajectories_randomly(env: Environment,
                 done = terminated or truncated
                 t += 1
                 if env_has_rgb_render:
-                    frames.append(np.uint8(env.render(mode='rgb_array')))
+                    frames.append(np.uint8(env.render()))
             traj.append((obs, None))
             if env_has_rgb_render:
                 clip = ImageSequenceClip(frames, fps=30)

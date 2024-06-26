@@ -3,7 +3,7 @@ import numpy as np
 import gymnasium as gym
 
 env_name = 'CartPole-v1'
-gym_env = gym.make(env_name)
+gym_env = gym.make(env_name, render_mode='rgb_array')
 
 np.random.seed(0) # Set the random seed for reproducibility for numpy operations
 gym_env.reset(seed=0) # Set the random seed for reproducibility for gym environment
@@ -17,8 +17,6 @@ def feature_func(traj):
     Returns:
         features: a numpy vector corresponding the features of the trajectory
     """
-    print([pair[0] for pair in traj])
-
     states = np.array([pair[0] for pair in traj])
     actions = np.array([pair[1] for pair in traj[:-1]])
     min_pos, max_pos = states[:,0].min(), states[:,0].max()
