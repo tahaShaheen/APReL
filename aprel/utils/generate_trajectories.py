@@ -82,7 +82,7 @@ def generate_trajectories_randomly(env: Environment,
             while not done and t < max_episode_length:
                 act = env.action_space.sample()
                 traj.append((obs,act))
-                obs, _, terminated, truncated, _ = env.step(act)
+                obs, reward, terminated, truncated, _ = env.step(act) # Taha: reward is not used. We will learn the reward function through user feedback.
                 done = terminated or truncated
                 t += 1
                 if env_has_rgb_render:

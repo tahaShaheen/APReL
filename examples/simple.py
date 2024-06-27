@@ -63,24 +63,59 @@ trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=10,
                                                       file_name=env_name, seed=0)
 features_dim = len(trajectory_set[0].features) 
 
+# Taha: This helps to select which trajectories to show to the human. This particilar one assumes a discrete set of trajectories is available. The query optimization is then performed over this discrete set. How they will be optimzed is done later.
 query_optimizer = aprel.QueryOptimizerDiscreteTrajectorySet(trajectory_set)
 
+# Taha: They assume that a real human is going to respond to the queries. 0.5 seconds delay time after each trajectory visualization.
 true_user = aprel.HumanUser(delay=0.5)
 
+# Taha: Generate a random normalized vector of the same dimension as the features of the trajectory.
 params = {'weights': aprel.util_funs.get_random_normalized_vector(features_dim)}
 
+# Taha: "We will learn a reward function that is linear in trajectory features by assuming a softmax human response model." Reward = dot product of the features of the trajectory and the user parameters. The system will try to match the softmax user's responses to the true user's responses.
 user_model = aprel.SoftmaxUser(params)
 
+# Taha: We "create a belief distribution over the parameters we want to learn". The parameters dictionary can be sampled from the belief object. 
 belief = aprel.SamplingBasedBelief(user_model, [], params)
-
 print('Estimated user parameters: ' + str(belief.mean))
-                                       
-query = aprel.PreferenceQuery(trajectory_set[:2]) # Taha: Presents the top 2 trajectories to the user for comparison.
 
+# Taha: Calculating the average reward of the trajectory set. This is calculated using the belief distribution which is random right now.
+reward = 0
+for traj in trajectory_set:
+    reward += belief.mean['weights'].dot(traj.features)
+reward /= trajectory_set.size
+print ('Average reward before learning: ' + str(reward))
+                                       
+# Taha: Creates a query object using the first 2 trajectories. This object is not indexable. Can't get the trajectories back from it, I think.
+# This is created as an initial query and used later to ensure that the output query of the optimize function will have the same type.
+query = aprel.PreferenceQuery(trajectory_set[:2]) 
+
+# Taha: Spoofing the true user responses. The true user will respond with the following responses.
+resopnses_true =  [0, 0, 0, 0, 1, 0, 1, 0, 0, 0]
+
+# Taha: Ask the user 10 queries.
 for query_no in range(10):
-    queries, objective_values = query_optimizer.optimize('mutual_information', belief, query)
-    print('Objective Value: ' + str(objective_values[0])) # Taha: No clue what this is.
+
+    # Taha: Optimizing the query_optimizer object with the 'mutual information' acquisition function.
+    # Generates the optimal batch of queries to ask to the user given a belief distribution about them (which ones the user will select or which one the model thinks is tricky). It also returns the acquisition function values of the optimized queries. 
+    # IN thsi case: The default optimization_method is 'exhaustive search' which returns a list of 1 query. It selects the query based on which one maximizes the acquisition function. Optimization method is how optimization is done. Acquisition function is hthe values that the optimization will base its functioning on.
+    queries, acquisition_function_values = query_optimizer.optimize('mutual_information', belief, query)
+    print('Acquisition Function Value: ' + str(acquisition_function_values[0])) 
     
-    responses = true_user.respond(queries[0])
+    # Taha: Ask the human to pick one of the queries. The human will respond with a list of 1 response.
+    # responses = true_user.respond(queries[0]) 
+    # Taha: Spoofing for now. Will not ask human to respond.
+    responses = [resopnses_true[query_no]]
+
+    # Taha: Use a Preference object to update the belief distribution. This is the feedback from the human. The belief distribution is updated based on the user's response.
     belief.update(aprel.Preference(queries[0], responses[0]))
+
+    # Taha: We can see the belief mean here for each parameter. The belief distribution is being used to generate means of parameters which can then be used to create a reward. 
     print('Estimated user parameters: ' + str(belief.mean))
+
+# Taha: Calculating the average reward of the trajectory set using the LEARNED belief distribution.
+reward = 0
+for traj in trajectory_set:
+    reward += belief.mean['weights'].dot(traj.features)
+reward /= trajectory_set.size
+print ('Average reward after learning: ' + str(reward))

@@ -126,7 +126,7 @@ class QueryOptimizerDiscreteTrajectorySet(QueryOptimizer):
             warnings.warn('Since batch size == 1, ignoring the batch selection method and using exhaustive search instead.')
             optimization_method = 'exhaustive_search'
                  
-        if optimization_method == 'exhaustive_search':
+        if optimization_method == 'exhaustive_search': # Taha: This is the default method.
             return self.exhaustive_search(acquisition_func, belief, initial_query, **kwargs)
         elif optimization_method == 'greedy':
             return self.greedy_batch(acquisition_func, belief, initial_query, batch_size, **kwargs)
