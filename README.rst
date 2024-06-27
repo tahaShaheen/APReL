@@ -27,6 +27,9 @@ Then this stuff one after the other:
 
     conda config --add channels conda-forge
     conda install gymnasium-all
+
+    pip install --upgrade pip
+    
     pip install gymnasium[accept-rom-license]
     pip install tensorflow
     pip install tensorflow[and-cuda]

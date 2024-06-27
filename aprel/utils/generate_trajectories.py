@@ -18,7 +18,9 @@ def generate_trajectories_randomly(env: Environment,
                                    file_name: str = None,
                                    restore: bool = False,
                                    headless: bool = False,
-                                   seed: int = None) -> TrajectorySet:
+                                   seed: int = None,
+                                   model = None
+                                   ) -> TrajectorySet:
     """
     Generates :py:attr:`num_trajectories` random trajectories, or loads (some of) them from the given file.
 
@@ -80,7 +82,10 @@ def generate_trajectories_randomly(env: Environment,
             done = False
             t = 0
             while not done and t < max_episode_length:
-                act = env.action_space.sample()
+                if model is None:
+                    act = env.action_space.sample() # Taha: Random action selection.
+                else:
+                    act, _ = model.predict(obs) # Taha: Model-based action selection.
                 traj.append((obs,act))
                 obs, reward, terminated, truncated, _ = env.step(act) # Taha: reward is not used. We will learn the reward function through user feedback.
                 done = terminated or truncated
