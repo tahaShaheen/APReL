@@ -91,7 +91,7 @@ def generate_trajectories_randomly(env: Environment,
             if env_has_rgb_render:
                 clip = ImageSequenceClip(frames, fps=30)
                 clip_path = 'aprel_trajectories/clips/' + file_name + '_' + str(traj_no) + '.mp4'
-                clip.write_videofile(clip_path, audio=False)
+                clip.write_videofile(clip_path, audio=False, logger='bar')
             else:
                 clip_path = None
             trajectories.append(Trajectory(env, traj, clip_path))

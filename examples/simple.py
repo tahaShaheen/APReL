@@ -1,6 +1,10 @@
 import aprel
 import numpy as np
 import gymnasium as gym
+from gymnasium import RewardWrapper, ObservationWrapper, Wrapper
+from aprel.basics import Trajectory
+from collections import deque
+
 
 # Taha:
 # # Classic Control
@@ -31,6 +35,33 @@ env_name = 'MountainCar-v0'
 # env_name = 'FrozenLake-v1'
 # env_name = 'Blackjack-v1' # Doesn't even render. Probably due to the nature of the observations.
 
+class CustomRewardWrapper(Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.env = env
+        # Keeping only 5 state action pairs in this trajectory.
+        self.trajectory = deque(maxlen=5) # Taha: If a 6th element is added, the first element is removed.
+        self.prev_obs = None
+
+    def reset(self, seed=None, options=None):
+        """Modifies the :attr:`env` after calling :meth:`reset`, returning a modified observation using :meth:`self.observation`."""
+        obs, info = self.env.reset(seed=seed, options=options)
+        self.trajectory.clear()
+        self.prev_obs = obs
+        return obs, info
+
+    def step(self, action):
+        """Modifies the :attr:`env` :meth:`step` reward using :meth:`self.reward`."""
+        observation, reward, terminated, truncated, info = self.env.step(action) # Taha: True reward not used
+        self.trajectory.append((self.prev_obs, action)) # Append a tuple of the previous observation and the action taken.
+        self.prev_obs = observation
+        return observation, self.reward(reward), terminated, truncated, info
+    
+    def reward(self, reward):
+        # Implement your custom reward transformation here
+        if len(self.trajectory) == 5:
+            features = Trajectory(env, list(self.trajectory)).features
+        return -1
 
 gym_env = gym.make(env_name, render_mode='rgb_array')
 
@@ -56,18 +87,21 @@ def feature_func(traj): # Taha: This is the feature function that works well onl
 
 
 env = aprel.Environment(gym_env, feature_func) # Taha: This is like a wrapper around the gym environment. 
+env = CustomRewardWrapper(env) # Taha: This is a custom reward wrapper around the environment.
 
 # Taha: Generate 10 trajectories randomly of maximum timestep length 300.
 trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=10,
                                                       max_episode_length=300,
-                                                      file_name=env_name, seed=0)
+                                                      file_name=env_name, seed=0,
+                                                    #   restore=True # Taha: Just to move things along faster. Uses the saved trajectories.
+                                                      )
 features_dim = len(trajectory_set[0].features) 
 
 # Taha: This helps to select which trajectories to show to the human. This particilar one assumes a discrete set of trajectories is available. The query optimization is then performed over this discrete set. How they will be optimzed is done later.
 query_optimizer = aprel.QueryOptimizerDiscreteTrajectorySet(trajectory_set)
 
 # Taha: They assume that a real human is going to respond to the queries. 0.5 seconds delay time after each trajectory visualization.
-true_user = aprel.HumanUser(delay=0.5)
+true_user = aprel.HumanUser(delay=0.5) 
 
 # Taha: Generate a random normalized vector of the same dimension as the features of the trajectory.
 params = {'weights': aprel.util_funs.get_random_normalized_vector(features_dim)}
@@ -77,7 +111,7 @@ user_model = aprel.SoftmaxUser(params)
 
 # Taha: We "create a belief distribution over the parameters we want to learn". The parameters dictionary can be sampled from the belief object. 
 belief = aprel.SamplingBasedBelief(user_model, [], params)
-print('Estimated user parameters: ' + str(belief.mean))
+# print('Estimated user parameters: ' + str(belief.mean))
 
 # Taha: Calculating the average reward of the trajectory set. This is calculated using the belief distribution which is random right now.
 reward = 0

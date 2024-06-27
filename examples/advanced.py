@@ -1,7 +1,15 @@
 import aprel
 import numpy as np
 import gymnasium as gym
+from gymnasium.wrappers import RewardWrapper
 
+class CustomRewardWrapper(RewardWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+    
+    def reward(self, reward):
+        # Implement your custom reward transformation here
+        return reward
 
 def feature_func(traj):
     """Returns the features of the given MountainCar trajectory, i.e. Phi(traj).
@@ -24,6 +32,7 @@ def feature_func(traj):
 def main(args):
     # Create the OpenAI Gym environment
     gym_env = gym.make(args['env'])
+    gym_env = CustomRewardWrapper(gym_env)
     
     # Seed for reproducibility
     np.random.seed(args['seed'])
