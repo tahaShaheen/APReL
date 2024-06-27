@@ -27,14 +27,18 @@ Then this stuff one after the other:
     conda create -n aprel_new python=3.12
     conda activate aprel_new
 
+    pip install --upgrade pip
+
     conda install gymnasium-all
+    pip install gymnasium[accept-rom-license]
+
+    conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
 
     pip install --upgrade pip
     
-    pip install gymnasium[accept-rom-license]
     .. pip install tensorflow
     .. pip install tensorflow[and-cuda]
-    pip install tensorrt
+    .. pip install tensorrt
 
     pip install stable-baselines3[extra]
 

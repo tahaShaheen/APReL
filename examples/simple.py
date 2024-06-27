@@ -163,39 +163,38 @@ if __name__ == '__main__':
     # Taha: Spoofing the true user responses. The true user will respond with the following responses.
     # fake_human_responses =  [1, 1, 
 
-    number_of_querries = 2
+    number_of_querries = 10
     model = SAC("MlpPolicy", env, verbose=1, device=device, tensorboard_log=log_dir)
     TIMESTEPS = 5000
 
-    for i in range(10):
-        # Taha: Ask the user 10 queries.
-        for query_no in range(number_of_querries):
+    # Taha: Ask the user 10 queries.
+    for query_no in range(number_of_querries):
 
-            # Taha: Optimizing the query_optimizer object with the 'mutual information' acquisition function.
-            # Generates the optimal batch of queries to ask to the user given a belief distribution about them (which ones the user will select or which one the model thinks is tricky). It also returns the acquisition function values of the optimized queries. 
-            # IN this case: The default optimization_method is 'exhaustive search' which returns a list of 1 query. It selects the query based on which one maximizes the acquisition function. Optimization method is how optimization is done. Acquisition function is hthe values that the optimization will base its functioning on.
-            # The third argument is the query object that is used to ensure that the output query of the optimize function will have the same type.
-            queries, acquisition_function_values = query_optimizer.optimize('mutual_information', belief, query)
-            # print('Acquisition Function Value: ' + str(acquisition_function_values[0])) 
-            
-            # Taha: Ask the human to pick one of the queries. The human will respond with a list of 1 response.
-            responses = true_user.respond(queries[0]) 
-            # Taha: Spoofing for now. Will not ask human to respond.
-            # responses = [fake_human_responses[query_no]]
+        # Taha: Optimizing the query_optimizer object with the 'mutual information' acquisition function.
+        # Generates the optimal batch of queries to ask to the user given a belief distribution about them (which ones the user will select or which one the model thinks is tricky). It also returns the acquisition function values of the optimized queries. 
+        # IN this case: The default optimization_method is 'exhaustive search' which returns a list of 1 query. It selects the query based on which one maximizes the acquisition function. Optimization method is how optimization is done. Acquisition function is hthe values that the optimization will base its functioning on.
+        # The third argument is the query object that is used to ensure that the output query of the optimize function will have the same type.
+        queries, acquisition_function_values = query_optimizer.optimize('mutual_information', belief, query)
+        # print('Acquisition Function Value: ' + str(acquisition_function_values[0])) 
+        
+        # Taha: Ask the human to pick one of the queries. The human will respond with a list of 1 response.
+        responses = true_user.respond(queries[0]) 
+        # Taha: Spoofing for now. Will not ask human to respond.
+        # responses = [fake_human_responses[query_no]]
 
-            # Taha: Use a Preference object to update the belief distribution. This is the feedback from the human. The belief distribution is updated based on the user's response.
-            env.update_belief(aprel.Preference(queries[0], responses[0]))
+        # Taha: Use a Preference object to update the belief distribution. This is the feedback from the human. The belief distribution is updated based on the user's response.
+        env.update_belief(aprel.Preference(queries[0], responses[0]))
 
-            # Taha: We can see the belief mean here for each parameter. The belief distribution is being used to generate means of parameters which can then be used to create a reward. 
-            # print('Estimated user parameters: ' + str(belief.mean))
+        # Taha: We can see the belief mean here for each parameter. The belief distribution is being used to generate means of parameters which can then be used to create a reward. 
+        # print('Estimated user parameters: ' + str(belief.mean))
 
-            # Taha: Calculating the average reward of the trajectory set using the LEARNED belief distribution.
-            reward = 0
-            for traj in trajectory_set:
-                reward += belief.mean['weights'].dot(traj.features)
-            reward /= trajectory_set.size
-            print (f'Average reward after query_no {query_no}:{str(reward)}')
-            
+        # Taha: Calculating the average reward of the trajectory set using the LEARNED belief distribution.
+        reward = 0
+        for traj in trajectory_set:
+            reward += belief.mean['weights'].dot(traj.features)
+        reward /= trajectory_set.size
+        print (f'Average reward after query_no {query_no}:{str(reward)}')
+        
         # Taha: Doing some reinforcement learning with the learned reward function.
         # model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False)
         model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=True)
