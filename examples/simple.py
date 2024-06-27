@@ -50,18 +50,22 @@ class CustomRewardWrapper(Wrapper):
         self.prev_obs = obs
         return obs, info
 
-    def step(self, action):
+    def step(self, action, belief=None):
         """Modifies the :attr:`env` :meth:`step` reward using :meth:`self.reward`."""
-        observation, reward, terminated, truncated, info = self.env.step(action) # Taha: True reward not used
+        observation, reward, terminated, truncated, info = self.env.step(action) 
         self.trajectory.append((self.prev_obs, action)) # Append a tuple of the previous observation and the action taken.
         self.prev_obs = observation
-        return observation, self.reward(reward), terminated, truncated, info
+        return observation, self.reward(reward, belief), terminated, truncated, info
     
-    def reward(self, reward):
-        # Implement your custom reward transformation here
-        if len(self.trajectory) == 5:
+    def reward(self, reward, belief=None):
+        reward = reward # True reward
+        if len(self.trajectory) == 5 and belief is not None:
             features = Trajectory(env, list(self.trajectory)).features
-        return -1
+            # Taha: The return of the trajectory is the dot product of the features of the trajectory and the user parameters.
+            # Using this as a reward for now. The features don't allow for one single state-action pair to be used to calculate the reward.
+            reward = belief.mean['weights'].dot(features) 
+        
+        return reward
 
 gym_env = gym.make(env_name, render_mode='rgb_array')
 
