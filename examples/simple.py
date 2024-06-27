@@ -8,16 +8,19 @@ from gymnasium import RewardWrapper, ObservationWrapper, Wrapper
 from aprel.basics import Trajectory
 from collections import deque
 
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, A2C, DQN, DDPG, TD3, SAC
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.env_checker import check_env
+
+import torch
 
 # Taha:
 # # Classic Control
 # # https://gymnasium.farama.org/environments/classic_control/
 # env_name = 'CartPole-v1'
-env_name = 'MountainCar-v0'
+# env_name = 'MountainCar-v0'
 # env_name = 'Acrobot-v1'
+env_name = 'MountainCarContinuous-v0'
 
 # # BOX2D
 # # https://gymnasium.farama.org/environments/box2d/
@@ -64,8 +67,9 @@ class CustomRewardWrapper(RewardWrapper):
         self.prev_obs = observation
         return observation, self.reward(reward), terminated, truncated, info
     
-    def reward(self, reward):
-        reward = reward # True reward
+    def reward(self, reward): 
+        # True reward not used.
+        reward = 0 
         if len(self.trajectory) == 5 and self.belief is not None:
             features = Trajectory(env, list(self.trajectory)).features
             # Taha: The return of the trajectory is the dot product of the features of the trajectory and the user parameters.
@@ -102,6 +106,9 @@ if __name__ == '__main__':
     log_dir = "logs"
     os.makedirs(model_dir, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(device)
 
     # Taha: Create the OpenAI Gym environment
     gym_env = gym.make(env_name, render_mode='rgb_array')
@@ -156,42 +163,43 @@ if __name__ == '__main__':
     # Taha: Spoofing the true user responses. The true user will respond with the following responses.
     # fake_human_responses =  [1, 1, 
 
-    number_of_querries = 10
-    model = PPO("MlpPolicy", env, verbose=1, device='cuda', tensorboard_log=log_dir)
-    TIMESTEPS = 50_000
+    number_of_querries = 2
+    model = SAC("MlpPolicy", env, verbose=1, device=device, tensorboard_log=log_dir)
+    TIMESTEPS = 5000
 
-    # Taha: Ask the user 10 queries.
-    for query_no in range(number_of_querries):
+    for i in range(10):
+        # Taha: Ask the user 10 queries.
+        for query_no in range(number_of_querries):
 
-        # Taha: Optimizing the query_optimizer object with the 'mutual information' acquisition function.
-        # Generates the optimal batch of queries to ask to the user given a belief distribution about them (which ones the user will select or which one the model thinks is tricky). It also returns the acquisition function values of the optimized queries. 
-        # IN this case: The default optimization_method is 'exhaustive search' which returns a list of 1 query. It selects the query based on which one maximizes the acquisition function. Optimization method is how optimization is done. Acquisition function is hthe values that the optimization will base its functioning on.
-        # The third argument is the query object that is used to ensure that the output query of the optimize function will have the same type.
-        queries, acquisition_function_values = query_optimizer.optimize('mutual_information', belief, query)
-        print('Acquisition Function Value: ' + str(acquisition_function_values[0])) 
-        
-        # Taha: Ask the human to pick one of the queries. The human will respond with a list of 1 response.
-        responses = true_user.respond(queries[0]) 
-        # Taha: Spoofing for now. Will not ask human to respond.
-        # responses = [fake_human_responses[query_no]]
+            # Taha: Optimizing the query_optimizer object with the 'mutual information' acquisition function.
+            # Generates the optimal batch of queries to ask to the user given a belief distribution about them (which ones the user will select or which one the model thinks is tricky). It also returns the acquisition function values of the optimized queries. 
+            # IN this case: The default optimization_method is 'exhaustive search' which returns a list of 1 query. It selects the query based on which one maximizes the acquisition function. Optimization method is how optimization is done. Acquisition function is hthe values that the optimization will base its functioning on.
+            # The third argument is the query object that is used to ensure that the output query of the optimize function will have the same type.
+            queries, acquisition_function_values = query_optimizer.optimize('mutual_information', belief, query)
+            # print('Acquisition Function Value: ' + str(acquisition_function_values[0])) 
+            
+            # Taha: Ask the human to pick one of the queries. The human will respond with a list of 1 response.
+            responses = true_user.respond(queries[0]) 
+            # Taha: Spoofing for now. Will not ask human to respond.
+            # responses = [fake_human_responses[query_no]]
 
-        # Taha: Use a Preference object to update the belief distribution. This is the feedback from the human. The belief distribution is updated based on the user's response.
-        env.update_belief(aprel.Preference(queries[0], responses[0]))
+            # Taha: Use a Preference object to update the belief distribution. This is the feedback from the human. The belief distribution is updated based on the user's response.
+            env.update_belief(aprel.Preference(queries[0], responses[0]))
 
-        # Taha: We can see the belief mean here for each parameter. The belief distribution is being used to generate means of parameters which can then be used to create a reward. 
-        print('Estimated user parameters: ' + str(belief.mean))
+            # Taha: We can see the belief mean here for each parameter. The belief distribution is being used to generate means of parameters which can then be used to create a reward. 
+            # print('Estimated user parameters: ' + str(belief.mean))
 
-        # Taha: Calculating the average reward of the trajectory set using the LEARNED belief distribution.
-        reward = 0
-        for traj in trajectory_set:
-            reward += belief.mean['weights'].dot(traj.features)
-        reward /= trajectory_set.size
-        print (f'Average reward after query_no {query_no}:{str(reward)}')
-        
+            # Taha: Calculating the average reward of the trajectory set using the LEARNED belief distribution.
+            reward = 0
+            for traj in trajectory_set:
+                reward += belief.mean['weights'].dot(traj.features)
+            reward /= trajectory_set.size
+            print (f'Average reward after query_no {query_no}:{str(reward)}')
+            
         # Taha: Doing some reinforcement learning with the learned reward function.
         # model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False)
         model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=True)
-        model.save(f"{model_dir}/PPO_{TIMESTEPS}")
+        model.save(f"{model_dir}/SAC_{TIMESTEPS}")
 
         # Taha: Update the trajectory set with new trajectories generated by the updated agent. Should be better than previous trajectories.
         trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=10,
@@ -201,7 +209,7 @@ if __name__ == '__main__':
                                                         )
 
     # Taha: Load the model and run it. See if we learned anything.
-    model = PPO.load(f"{model_dir}/PPO_{TIMESTEPS}", env=env)
+    model = SAC.load(f"{model_dir}/SAC_{TIMESTEPS}", env=env)
 
     env = gym.make(env_name, render_mode='human')
 

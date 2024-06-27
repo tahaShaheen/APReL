@@ -22,24 +22,25 @@ Then this stuff one after the other:
 
     sudo apt-get install python3-opengl
 
+    conda config --add channels conda-forge
+
     conda create -n aprel_new python=3.12
     conda activate aprel_new
 
-    conda config --add channels conda-forge
     conda install gymnasium-all
 
     pip install --upgrade pip
     
     pip install gymnasium[accept-rom-license]
-    pip install tensorflow
-    pip install tensorflow[and-cuda]
+    .. pip install tensorflow
+    .. pip install tensorflow[and-cuda]
     pip install tensorrt
 
     pip install stable-baselines3[extra]
 
     pip install -r requirements.txt
     
-    pip install pyglet
+    .. pip install pyglet
 
     pip3 install -e .
 
