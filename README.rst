@@ -29,6 +29,10 @@ Then this stuff one after the other:
     conda install gymnasium-all
     pip install gymnasium[accept-rom-license]
     pip install tensorflow
+    pip install tensorflow[and-cuda]
+    pip install tensorrt
+
+    pip install stable-baselines3[extra]
 
     pip install -r requirements.txt
     

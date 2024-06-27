@@ -1,9 +1,13 @@
+import os
 import aprel
 import numpy as np
 import gymnasium as gym
 from gymnasium import RewardWrapper, ObservationWrapper, Wrapper
 from aprel.basics import Trajectory
 from collections import deque
+
+from stable_baselines3 import PPO
+from stable_baselines3.common.evaluation import evaluate_policy
 
 
 # Taha:
@@ -35,7 +39,7 @@ env_name = 'MountainCar-v0'
 # env_name = 'FrozenLake-v1'
 # env_name = 'Blackjack-v1' # Doesn't even render. Probably due to the nature of the observations.
 
-class CustomRewardWrapper(Wrapper):
+class CustomRewardWrapper(RewardWrapper):
     def __init__(self, env):
         super().__init__(env)
         self.env = env
@@ -97,7 +101,7 @@ env = CustomRewardWrapper(env) # Taha: This is a custom reward wrapper around th
 trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=10,
                                                       max_episode_length=300,
                                                       file_name=env_name, seed=0,
-                                                    #   restore=True # Taha: Just to move things along faster. Uses the saved trajectories.
+                                                      restore=True # Taha: Just to move things along faster. Uses the saved trajectories.
                                                       )
 features_dim = len(trajectory_set[0].features) 
 
@@ -157,3 +161,30 @@ for traj in trajectory_set:
     reward += belief.mean['weights'].dot(traj.features)
 reward /= trajectory_set.size
 print ('Average reward after learning: ' + str(reward))
+
+# Taha: Doing some reinforcement learning with the learned reward function.
+from stable_baselines3.common.env_checker import check_env
+# It will check your custom environment and output additional warnings if needed
+check_env(env)
+
+# model_dir = "models"
+# log_dir = "logs"
+# os.makedirs(model_dir, exist_ok=True)
+# os.makedirs(log_dir, exist_ok=True)
+
+# model = PPO("MlpPolicy", env, verbose=1, device='cuda', tensorboard_log=log_dir)
+# TIMESTEPS = 25000
+# iters = 0
+
+# model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False)
+# model.save(f"{model_dir}/PPO_{TIMESTEPS}")
+
+# model = PPO.load(f"{model_dir}/PPO_{TIMESTEPS}", env=env)
+
+# obs, _ = env.reset()
+# while True:
+#     action, _ = model.predict(obs)
+#     obs, _, terminated, truncated, _ = env.step(action)
+
+#     if terminated or truncated:
+#         break

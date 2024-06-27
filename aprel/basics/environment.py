@@ -3,8 +3,8 @@
 from typing import Callable
 import gymnasium as gym
 
-
-class Environment:
+# Taha: Added gym.core.Env to the import statement to allow this env wrapper to work with stable baselines.
+class Environment(gym.core.Env):
     """
     This is a wrapper around an OpenAI Gym environment, so that
     we can store the features function along with the environment itself.
