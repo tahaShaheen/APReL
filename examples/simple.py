@@ -8,6 +8,7 @@ from gymnasium import RewardWrapper, ObservationWrapper, Wrapper
 from aprel.basics import Trajectory
 from collections import deque
 
+import stable_baselines3
 from stable_baselines3 import PPO, A2C, DQN, DDPG, TD3, SAC
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.env_checker import check_env
@@ -100,6 +101,10 @@ def feature_func(traj): # Taha: This is the feature function that works well onl
     return (np.array([min_pos, max_pos, mean_speed]) - mean_vec) / std_vec
 
 if __name__ == '__main__':
+
+    SEED = 0 # Taha: Random seed for reproducibility.
+
+    number_of_querries = 10 # Taha: Number of queries to ask the human.
     
     # Taha: Making directories to save the models and logs.
     model_dir = "models"
@@ -108,15 +113,19 @@ if __name__ == '__main__':
     os.makedirs(log_dir, exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(device)
+    # print(device)
 
     # Taha: Create the OpenAI Gym environment
     gym_env = gym.make(env_name, render_mode='rgb_array')
 
-    np.random.seed(0) # Taha: Set the random seed for reproducibility for numpy operations
-    gym_env.reset(seed=0) # Taha: Set the random seed for reproducibility for gym environment
+    np.random.seed(SEED) # Taha: Set the random seed for reproducibility for numpy operations
+    gym_env.reset(seed=SEED) # Taha: Set the random seed for reproducibility for gym environment
+    # stable_baselines3.common.utils.set_random_seed(SEED, using_cuda=True) # Taha: Set the random seed for reproducibility for stable-baselines3 library
 
     env = aprel.Environment(gym_env, feature_func) # Taha: This is like a wrapper around the gym environment. 
+
+    # Taha: Create a SAC model using the stable-baselines library. Will be used to learn policy and generate new trajectories.
+    model = SAC("MlpPolicy", env, verbose=1, device=device, tensorboard_log=log_dir, seed=SEED)
 
     # Taha: They assume that a real human is going to respond to the queries. 0.5 seconds delay time after each trajectory visualization.
     true_user = aprel.HumanUser(delay=0.5) 
@@ -140,9 +149,10 @@ if __name__ == '__main__':
     check_env(env)
 
     # Taha: Generate 10 trajectories randomly of maximum timestep length 300.
+    print('Generating trajectories with random policy ...')
     trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=10,
                                                         max_episode_length=300,
-                                                        file_name=env_name, seed=0,
+                                                        file_name=env_name, seed=SEED,
                                                         # restore=True # Taha: Just to move things along faster. Uses the saved trajectories.
                                                         )
     
@@ -154,21 +164,28 @@ if __name__ == '__main__':
     for traj in trajectory_set:
         reward += belief.mean['weights'].dot(traj.features)
     reward /= trajectory_set.size
-    print ('Average reward before learning: ' + str(reward))
+    print('Average reward before learning: ' + str(reward))
                                         
     # Taha: Creates a query object using the first 2 trajectories. This object is not indexable. Can't get the trajectories back from it, I think.
     # This is created as an initial query and used later to ensure that the output query of the optimize function will have the same type.
     query = aprel.PreferenceQuery(trajectory_set[:2]) 
 
     # Taha: Spoofing the true user responses. The true user will respond with the following responses.
-    # fake_human_responses =  [1, 1, 
+    # Since the seed is set to 0, the trajectories to compare will be the same each time and thus the responses will be the same each time.
+    # simulated_human_feedback =  [0, 0, 0, 0, 0, 0, 0, 1, 1, 0]  # Subject to randomness.
+    
+    # TIMESTEPS = 5000 # Worked perfectly once.
+    # TIMESTEPS = 500 # Learned to reach the goal. Did not learn that going back is good. Once.
+    # TIMESTEPS = 1000 
+    TIMESTEPS = 10_000 
 
-    number_of_querries = 10
-    model = SAC("MlpPolicy", env, verbose=1, device=device, tensorboard_log=log_dir)
-    TIMESTEPS = 5000
+    all_responses = []
 
     # Taha: Ask the user 10 queries.
     for query_no in range(number_of_querries):
+        print('-----------------------------------')
+        print(f'Query No: {query_no+1} of {number_of_querries} running')
+        print('-----------------------------------')
 
         # Taha: Optimizing the query_optimizer object with the 'mutual information' acquisition function.
         # Generates the optimal batch of queries to ask to the user given a belief distribution about them (which ones the user will select or which one the model thinks is tricky). It also returns the acquisition function values of the optimized queries. 
@@ -177,12 +194,15 @@ if __name__ == '__main__':
         queries, acquisition_function_values = query_optimizer.optimize('mutual_information', belief, query)
         # print('Acquisition Function Value: ' + str(acquisition_function_values[0])) 
         
-        # Taha: Ask the human to pick one of the queries. The human will respond with a list of 1 response.
-        responses = true_user.respond(queries[0]) 
-        # Taha: Spoofing for now. Will not ask human to respond.
-        # responses = [fake_human_responses[query_no]]
+        # Taha: Ask the human to pick one of the queries from this list of 1 querry object. The human will respond with a list of 1 response.
+        responses = true_user.respond(queries[0])
+        # Taha: Spoofing for now. Will not ask human to respond. FIX: Not working as expected.
+        # responses = responses.append(simulated_human_feedback[query_no])
+        
+        all_responses.append(responses[0]) # Taha: Saving to later create automated responses.
 
         # Taha: Use a Preference object to update the belief distribution. This is the feedback from the human. The belief distribution is updated based on the user's response.
+        print('Updating belief...')
         env.update_belief(aprel.Preference(queries[0], responses[0]))
 
         # Taha: We can see the belief mean here for each parameter. The belief distribution is being used to generate means of parameters which can then be used to create a reward. 
@@ -193,25 +213,30 @@ if __name__ == '__main__':
         for traj in trajectory_set:
             reward += belief.mean['weights'].dot(traj.features)
         reward /= trajectory_set.size
-        print (f'Average reward after query_no {query_no}:{str(reward)}')
+        print(f'Average reward after {query_no+1}th query: {str(reward)}')
         
         # Taha: Doing some reinforcement learning with the learned reward function.
-        # model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False)
-        model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=True)
+        print('Learning...')
+        model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False) # TODO: Make log interval smaller. 
+        # model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=True)
         model.save(f"{model_dir}/SAC_{TIMESTEPS}")
 
-        # Taha: Update the trajectory set with new trajectories generated by the updated agent. Should be better than previous trajectories.
-        trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=10,
-                                                        max_episode_length=300,
-                                                        file_name=env_name, seed=0, 
-                                                        model=model,
-                                                        )
+        if query_no < number_of_querries - 1:
+            print('Generating new trajectories...')
+            # Taha: Update the trajectory set with new trajectories generated by the updated agent. Should be better than previous trajectories.
+            trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=10,
+                                                            max_episode_length=300,
+                                                            file_name=env_name, seed=SEED, 
+                                                            model=model,
+                                                            )
+        
+    print(f'User responses were {all_responses}')
 
     # Taha: Load the model and run it. See if we learned anything.
+    env = gym.make(env_name, render_mode='rgb_array')
+    env = gym.wrappers.RecordVideo(env, 'video')
     model = SAC.load(f"{model_dir}/SAC_{TIMESTEPS}", env=env)
-
-    env = gym.make(env_name, render_mode='human')
-
+    
     obs, _ = env.reset()
     while True:
         env.render()

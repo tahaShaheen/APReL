@@ -36,9 +36,11 @@ Then this stuff one after the other:
 
     pip install --upgrade pip
     
-    .. pip install tensorflow
-    .. pip install tensorflow[and-cuda]
-    .. pip install tensorrt
+    pip install tensorflow[and-cuda]
+
+Not needed anymore
+.. pip install tensorflow
+.. pip install tensorrt
 
     pip install stable-baselines3[extra]
 
