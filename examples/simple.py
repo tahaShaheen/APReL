@@ -8,7 +8,6 @@ from gymnasium import RewardWrapper, ObservationWrapper, Wrapper
 from aprel.basics import Trajectory
 from collections import deque
 
-import stable_baselines3
 from stable_baselines3 import PPO, A2C, DQN, DDPG, TD3, SAC
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.env_checker import check_env
@@ -70,13 +69,11 @@ class CustomRewardWrapper(RewardWrapper):
     
     def reward(self, reward): 
         # True reward not used.
-        reward = 0 
         if len(self.trajectory) == 5:
             features = Trajectory(env, list(self.trajectory)).features
             # Taha: The return of the trajectory is the dot product of the features of the trajectory and the user parameters.
             # Using this as a reward for now. The features don't allow for one single state-action pair to be used to calculate the reward.
             reward = self.belief.mean['weights'].dot(features) 
-        
         return reward
     
     def update_belief(self, preference: Preference):
@@ -104,7 +101,7 @@ if __name__ == '__main__':
 
     SEED = 0 # Taha: Random seed for reproducibility.
 
-    TIMESTEPS = 5000 # Worked perfectly once.
+    TIMESTEPS = 5000 # Worked perfectly once. Then never again.
     # TIMESTEPS = 500 # Learned to reach the goal. Did not learn that going back is good. Once.
     # TIMESTEPS = 1000 
     # TIMESTEPS = 10_000 
@@ -127,13 +124,13 @@ if __name__ == '__main__':
 
     np.random.seed(SEED) # Taha: Set the random seed for reproducibility for numpy operations
     gym_env.reset(seed=SEED) # Taha: Set the random seed for reproducibility for gym environment
-    stable_baselines3.common.utils.set_random_seed(SEED, using_cuda=True) # Taha: Set the random seed for reproducibility for stable-baselines3 library
-
+    
     env = aprel.Environment(gym_env, feature_func) # Taha: This is like a wrapper around the gym environment. 
 
     # Taha: Create a SAC model using the stable-baselines library. Will be used to learn policy and generate new trajectories.
-    model = SAC("MlpPolicy", env, verbose=1, device=device, tensorboard_log=log_dir, seed=SEED)
-    # model = SAC("MlpPolicy", env, verbose=1, device=device, tensorboard_log=log_dir)
+    # model = SAC("MlpPolicy", env, verbose=1, device=device, tensorboard_log=log_dir, seed=SEED)
+    model = SAC("MlpPolicy", env, verbose=1, device=device, tensorboard_log=log_dir)
+    model.set_random_seed(SEED)
 
     # Taha: They assume that a real human is going to respond to the queries. 0.5 seconds delay time after each trajectory visualization.
     true_user = aprel.HumanUser(delay=0.5) 
@@ -222,7 +219,9 @@ if __name__ == '__main__':
         
         # Taha: Doing some reinforcement learning with the learned reward function.
         print('Learning...')
-        model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False) # TODO: Make log interval smaller. 
+        model.learn(total_timesteps=TIMESTEPS, 
+                    reset_num_timesteps=False,
+                    log_interval=4)
         # model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=True)
         model.save(f"{model_dir}/SAC_{TIMESTEPS}")
 
