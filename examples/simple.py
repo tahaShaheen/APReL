@@ -100,16 +100,13 @@ def feature_func(traj): # Taha: This is the feature function that works well onl
 if __name__ == '__main__':
 
     SEED = 0 # Taha: Random seed for reproducibility.
-
+    max_episode_length = 200 # Taha: Maximum length of the trajectory. If the trajectory is not terminated by then, it will be terminated.
+    number_of_querries = 5 # Taha: Total number of queries to ask the human. 10 is good
+    num_trajectories = 10 # Taha: Number of trajectories to generate randomly. 10 is good.
     TIMESTEPS = 5000 # Worked perfectly once. Then never again.
     # TIMESTEPS = 500 # Learned to reach the goal. Did not learn that going back is good. Once.
     # TIMESTEPS = 1000 
-    # TIMESTEPS = 10_000 
-
-    number_of_querries = 10 # Taha: Total number of queries to ask the human. 10 is good.
-    num_of_trajectories = 10 # Taha: Number of trajectories to generate.max_episode_length
-    max_episode_length = 300 # Taha: Maximum length of the trajectory. If the trajectory is not terminated by then, it will be terminated.
-    
+    # TIMESTEPS = 10_000
     # Taha: Making directories to save the models and logs.
     model_dir = "models"
     log_dir = "logs"
@@ -152,10 +149,12 @@ if __name__ == '__main__':
 
     # Taha: This will check the custom environment and output additional warnings if needed. Helped to make the aprel env compatible with stable-baselines.
     check_env(env)
+    
+    model = SAC("MlpPolicy", env, verbose=1, device=device, tensorboard_log=log_dir, seed=SEED, )
 
     # Taha: Generate 10 trajectories randomly of maximum timestep length 300.
     print('Generating trajectories with random policy ...')
-    trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=num_of_trajectories,
+    trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=num_trajectories,
                                                         max_episode_length=max_episode_length,
                                                         file_name=env_name, seed=SEED,
                                                         # restore=True # Taha: Just to move things along faster. Uses the saved trajectories.
@@ -187,6 +186,10 @@ if __name__ == '__main__':
         print(f'Query No: {query_no+1} of {number_of_querries} running')
         print('-----------------------------------')
 
+        print('---------------------------------')
+        print(f'Query number: {query_no+1} of {number_of_querries}')
+        print('---------------------------------')
+
         # Taha: Optimizing the query_optimizer object with the 'mutual information' acquisition function.
         # Generates the optimal batch of queries to ask to the user given a belief distribution about them (which ones the user will select or which one the model thinks is tricky). It also returns the acquisition function values of the optimized queries. 
         # IN this case: The default optimization_method is 'exhaustive search' which returns a list of 1 query. It selects the query based on which one maximizes the acquisition function. Optimization method is how optimization is done. Acquisition function is hthe values that the optimization will base its functioning on.
@@ -195,13 +198,10 @@ if __name__ == '__main__':
         # print('Acquisition Function Value: ' + str(acquisition_function_values[0])) 
         
         # Taha: Ask the human to pick one of the queries from this list of 1 querry object. The human will respond with a list of 1 response.
-        responses = true_user.respond(queries[0])
-        # Taha: Spoofing for now. Will not ask human to respond. FIX: Not working as expected.
-        # responses = responses.append(simulated_human_feedback[query_no])
-        # Taha: Randomly select a response from the list of responses.
-        # responses = list(np.random.choice([0, 1], 1)) 
-        
-        all_responses.append(responses[0]) # Taha: Saving to later create automated responses.
+        responses = true_user.respond(queries[0]) 
+        # Taha: Spoofing for now. Will not ask human to respond.
+        # responses = [fake_human_responses[query_no]]
+        all_responses.append(responses[0])
 
         # Taha: Use a Preference object to update the belief distribution. This is the feedback from the human. The belief distribution is updated based on the user's response.
         print('Updating belief...')
@@ -219,33 +219,34 @@ if __name__ == '__main__':
         
         # Taha: Doing some reinforcement learning with the learned reward function.
         print('Learning...')
-        model.learn(total_timesteps=TIMESTEPS, 
-                    reset_num_timesteps=False,
-                    log_interval=4)
+        model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False)
         # model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=True)
-        model.save(f"{model_dir}/SAC_{TIMESTEPS}")
+        model.save(f"{model_dir}/SAC_{TIMESTEPS}_query_{query_no}")
 
         if query_no < number_of_querries - 1:
-            print('Generating new trajectories...')
             # Taha: Update the trajectory set with new trajectories generated by the updated agent. Should be better than previous trajectories.
-            trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=num_of_trajectories,
+            print('Generating new trajectories ...')
+            trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=num_trajectories,
                                                             max_episode_length=max_episode_length,
                                                             file_name=env_name, seed=SEED, 
                                                             model=model,
                                                             )
-        
-    print(f'User responses were {all_responses}')
+            
+    print('All responses: ' + str(all_responses))
 
     # Taha: Load the model and run it. See if we learned anything.
-    env = gym.make(env_name, render_mode='rgb_array')
-    env = gym.wrappers.RecordVideo(env, 'video')
-    model = SAC.load(f"{model_dir}/SAC_{TIMESTEPS}", env=env)
-    
-    obs, _ = env.reset()
-    while True:
-        env.render()
-        action, _ = model.predict(obs)
-        obs, _, terminated, truncated, _ = env.step(action)
+    for query_no in range(number_of_querries):
+        print(f'Generating video for model from query number: {query_no+1} of {number_of_querries}')
 
-        if terminated or truncated:
-            break
+        env = gym.make(env_name, render_mode='rgb_array')
+        env = gym.wrappers.RecordVideo(env, video_folder="videos/", name_prefix=f"SAC_{query_no}", )
+        model = SAC.load(f"{model_dir}/SAC_{TIMESTEPS}_query_{query_no}", env=env)
+
+        obs, _ = env.reset()
+        while True:
+            # env.render() # Taha: This is not needed as we are recording the video.
+            action, _ = model.predict(obs)
+            obs, _, terminated, truncated, _ = env.step(action)
+
+            if terminated or truncated:
+                break
