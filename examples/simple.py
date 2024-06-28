@@ -8,7 +8,7 @@ from gymnasium import RewardWrapper, ObservationWrapper, Wrapper
 from aprel.basics import Trajectory
 from collections import deque
 
-from stable_baselines3 import PPO, A2C, DQN, DDPG, TD3, SAC
+from stable_baselines3 import PPO
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.env_checker import check_env
 
@@ -17,32 +17,32 @@ import torch
 # Taha:
 # # Classic Control
 # # https://gymnasium.farama.org/environments/classic_control/
-# env_name = 'CartPole-v1'
-# env_name = 'MountainCar-v0'
-# env_name = 'Acrobot-v1'
-env_name = 'MountainCarContinuous-v0'
+# ENV_NAME = 'CartPole-v1'
+# ENV_NAME = 'MountainCar-v0'
+ENV_NAME = 'Acrobot-v1'
+# ENV_NAME = 'MountainCarContinuous-v0'
 
 # # BOX2D
 # # https://gymnasium.farama.org/environments/box2d/
-# env_name = 'LunarLander-v2'
-# env_name = 'BipedalWalker-v3'
+# ENV_NAME = 'LunarLander-v2'
+# ENV_NAME = 'BipedalWalker-v3'
 
 # # Atari
 # # https://gymnasium.farama.org/environments/atari/
-# env_name = 'Pong-v0'
-# env_name = 'SpaceInvaders-v0'
+# ENV_NAME = 'Pong-v0'
+# ENV_NAME = 'SpaceInvaders-v0'
 
 # # Mujoco # Some sort of rendering issue. TODO: Use Wrappers (RecordVideo, RenderCollection, etc.) [https://gymnasium.farama.org/api/wrappers/misc_wrappers/]
 # # https://gymnasium.farama.org/environments/mujoco/
-# env_name = 'HalfCheetah-v4' 
-# env_name = 'Ant-v4'
+# ENV_NAME = 'HalfCheetah-v4' 
+# ENV_NAME = 'Ant-v4'
 
 # # Toy Text
 # # https://gymnasium.farama.org/environments/toy_text/ # IndexError: too many indices for array: array is 1-dimensional, but 2 were indexed (line 50 simple.py). This is a issue with the code for the feature function, not the aprel library.
-# env_name = 'CliffWalking-v0'
-# env_name = 'Taxi-v3'
-# env_name = 'FrozenLake-v1'
-# env_name = 'Blackjack-v1' # Doesn't even render. Probably due to the nature of the observations.
+# ENV_NAME = 'CliffWalking-v0'
+# ENV_NAME = 'Taxi-v3'
+# ENV_NAME = 'FrozenLake-v1'
+# ENV_NAME = 'Blackjack-v1' # Doesn't even render. Probably due to the nature of the observations.
 
 class CustomRewardWrapper(RewardWrapper):
     def __init__(self, env, belief: Belief):
@@ -100,33 +100,32 @@ def feature_func(traj): # Taha: This is the feature function that works well onl
 if __name__ == '__main__':
 
     SEED = 0 # Taha: Random seed for reproducibility.
-    max_episode_length = 200 # Taha: Maximum length of the trajectory. If the trajectory is not terminated by then, it will be terminated.
-    number_of_querries = 5 # Taha: Total number of queries to ask the human. 10 is good
-    num_trajectories = 10 # Taha: Number of trajectories to generate randomly. 10 is good.
-    TIMESTEPS = 5000 # Worked perfectly once. Then never again.
-    # TIMESTEPS = 500 # Learned to reach the goal. Did not learn that going back is good. Once.
+    MAX_EPISODE_LENGTH = 300 # Taha: Maximum length of the trajectory. If the trajectory is not terminated by then, it will be terminated.
+    NUMBER_OF_QUERIES = 10 # Taha: Total number of queries to ask the human. 10 is good
+    NUM_TRAJECTORIES = 10 # Taha: Number of trajectories to generate randomly. 10 is good.
+    TIMESTEPS = 5000 # Worked perfectly once. Then have had some success.
+    # TIMESTEPS = 500 # Learned to reach the goal. Did not learn that going back is good. Once. Did not have success again.
     # TIMESTEPS = 1000 
     # TIMESTEPS = 10_000
+
     # Taha: Making directories to save the models and logs.
-    model_dir = "models"
-    log_dir = "logs"
-    os.makedirs(model_dir, exist_ok=True)
-    os.makedirs(log_dir, exist_ok=True)
+    MODEL_DIRECTORY = "models"
+    LOG_DIRECTORY = "logs"
+    os.makedirs(MODEL_DIRECTORY, exist_ok=True)
+    os.makedirs(LOG_DIRECTORY, exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # print(device)
 
     # Taha: Create the OpenAI Gym environment
-    gym_env = gym.make(env_name, render_mode='rgb_array')
+    gym_env = gym.make(ENV_NAME, render_mode='rgb_array')
 
     np.random.seed(SEED) # Taha: Set the random seed for reproducibility for numpy operations
     gym_env.reset(seed=SEED) # Taha: Set the random seed for reproducibility for gym environment
     
     env = aprel.Environment(gym_env, feature_func) # Taha: This is like a wrapper around the gym environment. 
 
-    # Taha: Create a SAC model using the stable-baselines library. Will be used to learn policy and generate new trajectories.
-    # model = SAC("MlpPolicy", env, verbose=1, device=device, tensorboard_log=log_dir, seed=SEED)
-    model = SAC("MlpPolicy", env, verbose=1, device=device, tensorboard_log=log_dir)
+    model = PPO("MlpPolicy", env, verbose=1, device=device, tensorboard_log=LOG_DIRECTORY)
     model.set_random_seed(SEED)
 
     # Taha: They assume that a real human is going to respond to the queries. 0.5 seconds delay time after each trajectory visualization.
@@ -150,13 +149,13 @@ if __name__ == '__main__':
     # Taha: This will check the custom environment and output additional warnings if needed. Helped to make the aprel env compatible with stable-baselines.
     check_env(env)
     
-    model = SAC("MlpPolicy", env, verbose=1, device=device, tensorboard_log=log_dir, seed=SEED, )
+    model = PPO("MlpPolicy", env, verbose=1, device=device, tensorboard_log=LOG_DIRECTORY, seed=SEED)
 
     # Taha: Generate 10 trajectories randomly of maximum timestep length 300.
     print('Generating trajectories with random policy ...')
-    trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=num_trajectories,
-                                                        max_episode_length=max_episode_length,
-                                                        file_name=env_name, seed=SEED,
+    trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=NUM_TRAJECTORIES,
+                                                        max_episode_length=MAX_EPISODE_LENGTH,
+                                                        file_name=ENV_NAME, seed=SEED,
                                                         # restore=True # Taha: Just to move things along faster. Uses the saved trajectories.
                                                         )
     
@@ -181,13 +180,13 @@ if __name__ == '__main__':
     all_responses = []
 
     # Taha: Ask the user 10 queries.
-    for query_no in range(number_of_querries):
+    for query_no in range(NUMBER_OF_QUERIES):
         print('-----------------------------------')
-        print(f'Query No: {query_no+1} of {number_of_querries} running')
+        print(f'Query No: {query_no+1} of {NUMBER_OF_QUERIES} running')
         print('-----------------------------------')
 
         print('---------------------------------')
-        print(f'Query number: {query_no+1} of {number_of_querries}')
+        print(f'Query number: {query_no+1} of {NUMBER_OF_QUERIES}')
         print('---------------------------------')
 
         # Taha: Optimizing the query_optimizer object with the 'mutual information' acquisition function.
@@ -219,28 +218,29 @@ if __name__ == '__main__':
         
         # Taha: Doing some reinforcement learning with the learned reward function.
         print('Learning...')
-        model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False)
-        # model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=True)
-        model.save(f"{model_dir}/SAC_{TIMESTEPS}_query_{query_no}")
+        model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, log_interval=1)
 
-        if query_no < number_of_querries - 1:
+        print('Saving model ...')
+        # model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=True)
+        model.save(f"{MODEL_DIRECTORY}/PPO_{TIMESTEPS}_{ENV_NAME}_query_{query_no+1}")
+        if query_no < NUMBER_OF_QUERIES - 1:
             # Taha: Update the trajectory set with new trajectories generated by the updated agent. Should be better than previous trajectories.
             print('Generating new trajectories ...')
-            trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=num_trajectories,
-                                                            max_episode_length=max_episode_length,
-                                                            file_name=env_name, seed=SEED, 
+            trajectory_set = aprel.generate_trajectories_randomly(env, num_trajectories=NUM_TRAJECTORIES,
+                                                            max_episode_length=MAX_EPISODE_LENGTH,
+                                                            file_name=ENV_NAME, seed=SEED, 
                                                             model=model,
                                                             )
             
     print('All responses: ' + str(all_responses))
 
     # Taha: Load the model and run it. See if we learned anything.
-    for query_no in range(number_of_querries):
-        print(f'Generating video for model from query number: {query_no+1} of {number_of_querries}')
+    for query_no in range(NUMBER_OF_QUERIES):
+        print(f'Generating video for model from query number: {query_no+1} of {NUMBER_OF_QUERIES}')
 
-        env = gym.make(env_name, render_mode='rgb_array')
-        env = gym.wrappers.RecordVideo(env, video_folder="videos/", name_prefix=f"SAC_{query_no}", )
-        model = SAC.load(f"{model_dir}/SAC_{TIMESTEPS}_query_{query_no}", env=env)
+        env = gym.make(ENV_NAME, render_mode='rgb_array')
+        env = gym.wrappers.RecordVideo(env, video_folder="videos/", name_prefix=f"PPO_{TIMESTEPS}_{ENV_NAME}_query_{query_no+1}", )
+        model = PPO.load(f"{MODEL_DIRECTORY}/PPO_{TIMESTEPS}_{ENV_NAME}_query_{query_no+1}", env=env)
 
         obs, _ = env.reset()
         while True:
